@@ -1,0 +1,12 @@
+version: "3"
+
+tasks:
+  start:
+    desc: "Starts the Go HTTP server"
+    cmds:
+      - go run main.go
+    silent: false
+
+  default:
+    cmds:
+      - task: start
