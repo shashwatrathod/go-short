@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 	"github.com/shashwatrathod/url-shortner/utils"
 )

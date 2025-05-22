@@ -1,19 +1,92 @@
 package dao
 
-import "time"
+import (
+	"context" // Added for context propagation
+	"database/sql"
+	"fmt"
+	"time"
 
+	"github.com/shashwatrathod/url-shortner/db"
+)
+
+// defines the structure for a short URL record.
 type ShortURL struct {
-	shortUrl string
-	originalUrl string
-	createdAt time.Time
-	updatedAt time.Time
+	ShortURL    string    `json:"short_url"`
+	OriginalURL string    `json:"original_url"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// defines the interface for short URL data access operations.
 type ShortURLDao interface {
-	// CreateShortURL creates a new short URL entry in the database.
-	CreateShortURL(shortUrl string, originalUrl string) (ShortURL, error)
-	// GetShortURL retrieves a short URL entry from the database by its short URL.
-	GetShortURL(shortUrl string) (ShortURL, error)
+	// creates a new short URL entry in the database.
+	CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (ShortURL, error)
+	// retrieves a short URL entry from the database by its short URL.
+	GetShortURL(ctx context.Context, shortUrl string) (ShortURL, error)
 }
 
-// TODO
+// shortURLDaoImpl is the concrete implementation of ShortURLDao.
+type shortURLDaoImpl struct {
+	connManager *db.ConnectionManager
+}
+
+// creates a new instance of ShortURLDaoImpl.
+func NewShortURLDao(cm *db.ConnectionManager) ShortURLDao {
+	return &shortURLDaoImpl{
+		connManager: cm,
+	}
+}
+
+// creates a new short_url row with provided .
+func (d *shortURLDaoImpl) CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (ShortURL, error) {
+	if d.connManager == nil {
+		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
+	}
+	shardDB, err := d.connManager.GetShardByShardKey(shortUrl) // Use shortUrl as sharding key
+	if err != nil {
+		return ShortURL{}, fmt.Errorf("failed to get shard for key %s: %w", shortUrl, err)
+	}
+
+	query := `INSERT INTO short_urls (short_url, original_url) VALUES ($1, $2)
+               RETURNING short_url, original_url, created_at, updated_at`
+
+	var createdURL ShortURL
+	err = shardDB.QueryRowContext(ctx, query, shortUrl, originalUrl).Scan(
+		&createdURL.ShortURL,
+		&createdURL.OriginalURL,
+		&createdURL.CreatedAt,
+		&createdURL.UpdatedAt,
+	)
+	if err != nil {
+		return ShortURL{}, fmt.Errorf("failed to create short URL: %w", err)
+	}
+	return createdURL, nil
+}
+
+// GetShortURL implements the ShortURLDao interface.
+func (d *shortURLDaoImpl) GetShortURL(ctx context.Context, shortUrl string) (ShortURL, error) {
+	if d.connManager == nil {
+		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
+	}
+	shardDB, err := d.connManager.GetShardByShardKey(shortUrl) // Use shortUrl as sharding key
+	if err != nil {
+		return ShortURL{}, fmt.Errorf("failed to get shard for key %s: %w", shortUrl, err)
+	}
+
+	query := `SELECT short_url, original_url, created_at, updated_at FROM short_urls WHERE short_url = $1`
+
+	var fetchedURL ShortURL
+	err = shardDB.QueryRowContext(ctx, query, shortUrl).Scan(
+		&fetchedURL.ShortURL,
+		&fetchedURL.OriginalURL,
+		&fetchedURL.CreatedAt,
+		&fetchedURL.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ShortURL{}, fmt.Errorf("short URL not found: %s", shortUrl) // Consider a custom error type
+		}
+		return ShortURL{}, fmt.Errorf("failed to get short URL: %w", err)
+	}
+	return fetchedURL, nil
+}
