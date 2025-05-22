@@ -1,5 +1,17 @@
 module github.com/shashwatrathod/url-shortner
 
-go 1.22.2
+go 1.23.0
 
-require github.com/gorilla/mux v1.8.1 // indirect
+toolchain go1.23.9
+
+require (
+	github.com/gorilla/mux v1.8.1
+	github.com/pressly/goose/v3 v3.24.3
+)
+
+require (
+	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/sethvargo/go-retry v0.3.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+)
