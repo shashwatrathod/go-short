@@ -11,15 +11,15 @@ import (
 
 type AppEnv struct {
 	DBManager *db.ConnectionManager
-	ShortURLDAO dao.ShortURLDao
-	ShorteningStrategy core.ShorteningStrategy
+	UrlAliasDao dao.UrlAliasDao
+	AliasingStrategy core.AliasingStrategy
 }
 
 func NewAppEnv(dbManager *db.ConnectionManager) *AppEnv {
 	return &AppEnv{
         DBManager:   dbManager,
-        ShortURLDAO: dao.NewShortURLDao(dbManager),
-		ShorteningStrategy: core.NewSimpleShorteningStrategy(),
+        UrlAliasDao: dao.NewUrlAliasDao(dbManager),
+		AliasingStrategy: core.NewSimpleAliasingStrategy(),
     } 
 }
 

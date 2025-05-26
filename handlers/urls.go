@@ -11,91 +11,90 @@ import (
 )
 
 
-type CreateUrlRequest struct {
+type CreateUrlAliasRequest struct {
 	OriginalUrl string `json:"originalUrl" validate:"required,url"`
 }
 
-type CreateUrlResponse struct {
-	ShortUrl string `json:"shortUrl"`
+type CreateUrlAliasResponse struct {
+	UrlAlias string `json:"urlAlias"`
 }
 
 
-// CreateShortUrlHandler handles HTTP requests for creating a new short URL
+// CreateUrlAliasHandler handles HTTP requests for creating a new URL alias
 // or retrieving an existing one for a given original URL.
 // It expects a CreateUrlRequest in the request body.
 //
-// On success, it responds with a JSON object containing the short URL.
+// On success, it responds with a JSON object containing the aliased URL.
 // If an error occurs during processing (e.g., issues with application environment,
 // database operations, or URL generation), it logs the error and responds with
 // an HTTP 500 Internal Server Error.
-func CreateShortUrlHandler(w http.ResponseWriter, r *http.Request, req CreateUrlRequest) {
+func CreateUrlAliasHandler(w http.ResponseWriter, r *http.Request, req CreateUrlAliasRequest) {
 	appEnv, ok := r.Context().Value(middleware.ContextAppEnvKey).(*middleware.AppEnv)
 
 	if !ok || appEnv == nil {
-		log.Printf("CreateShortUrlHandler: Error accessing AppEnv.")
-		http.Error(w, "CreateShortUrlHandler: Error accessing AppEnv.", http.StatusInternalServerError);
+		log.Printf("CreateUrlAliasHandler: Error accessing AppEnv.")
+		http.Error(w, "CreateUrlAliasHandler: Error accessing AppEnv.", http.StatusInternalServerError);
 		return
 	}
 
-	// 1. Check if the URL already exists in any of the shards.
-	existingShortUrl, err := appEnv.ShortURLDAO.FindByOriginalUrl(r.Context(), req.OriginalUrl);
+	existingAlias, err := appEnv.UrlAliasDao.FindByOriginalUrl(r.Context(), req.OriginalUrl);
 
 	if err != nil {
 		log.Printf("Error: %s", err.Error())
-		http.Error(w, "CreateShortUrlHandler: Unexpected error while processing request.", http.StatusInternalServerError);
+		http.Error(w, "CreateUrlAliasHandler: Unexpected error while processing request.", http.StatusInternalServerError);
 		return
 	}
 
-	if existingShortUrl != nil {
-		log.Printf("Found an existing short Url for %s : %s", req.OriginalUrl, existingShortUrl.ShortURL);
-		json.NewEncoder(w).Encode(&CreateUrlResponse{
-			ShortUrl: existingShortUrl.ShortURL,
+	if existingAlias != nil {
+		log.Printf("Found an existing alias for %s : %s", req.OriginalUrl, existingAlias.Alias);
+		json.NewEncoder(w).Encode(&CreateUrlAliasResponse{
+			UrlAlias: existingAlias.Alias,
 		})
 		return
 	}
 
 	// no existing urls in db - create new short url.
-	shortUrl, err := core.GenerateShortUrl(req.OriginalUrl, appEnv.ShorteningStrategy)
+	shortUrl, err := core.GenerateAlias(req.OriginalUrl, appEnv.AliasingStrategy)
 
 	if err != nil {
-		log.Printf("CreateShortUrlHandler: Unexpected error while generating ShortUrl : %s.", err)
-		http.Error(w, "CreateShortUrlHandler: Unexpected error while generating ShortUrl.", http.StatusInternalServerError);
+		log.Printf("CreateShortUrlHandler: Unexpected error while generating alias : %s.", err)
+		http.Error(w, "CreateShortUrlHandler: Unexpected error while generating alias.", http.StatusInternalServerError);
 	}
 
-	dbShortUrl, err := appEnv.ShortURLDAO.CreateShortURL(r.Context(), shortUrl, req.OriginalUrl)
+	urlAlias, err := appEnv.UrlAliasDao.CreateUrlAlias(r.Context(), shortUrl, req.OriginalUrl)
 
 	if err != nil {
-		log.Printf("CreateShortUrlHandler: Unexpected error while saving ShortUrl : %s.", err)
-		http.Error(w, "CreateShortUrlHandler: Unexpected error while saving ShortUrl.", http.StatusInternalServerError);
+		log.Printf("CreateShortUrlHandler: Unexpected error while saving alias : %s.", err)
+		http.Error(w, "CreateShortUrlHandler: Unexpected error while saving alias.", http.StatusInternalServerError);
 	}
 
-	json.NewEncoder(w).Encode(&CreateUrlResponse{
-		ShortUrl: dbShortUrl.ShortURL,
+	json.NewEncoder(w).Encode(&CreateUrlAliasResponse{
+		UrlAlias: urlAlias.Alias,
 	})
 }
 
-func GetShortUrlHandler(w http.ResponseWriter, r *http.Request) {
+func GetUrlAliasHandler(w http.ResponseWriter, r *http.Request) {
 	appEnv, ok := r.Context().Value(middleware.ContextAppEnvKey).(*middleware.AppEnv)
 
 	if !ok || appEnv == nil {
-		log.Printf("GetShortUrlHandler: Error accessing AppEnv.")
-		http.Error(w, "GetShortUrlHandler: Error accessing AppEnv.", http.StatusInternalServerError);
+		log.Printf("GetUrlAliasHandler: Error accessing AppEnv.")
+		http.Error(w, "GetUrlAliasHandler: Error accessing AppEnv.", http.StatusInternalServerError);
 		return
 	}
 
 	vars := mux.Vars(r)
-	shortUrl := vars["shortUrl"]
+	alias := vars["alias"]
 
-	existingShortUrl, err := appEnv.ShortURLDAO.FindByShortUrl(r.Context(), shortUrl);
+	existingAlias, err := appEnv.UrlAliasDao.FindByAlias(r.Context(), alias);
 
 	if err != nil {
 		log.Printf("Error: %s", err.Error())
-		http.Error(w, "GetShortUrlHandler: Unexpected error while processing request.", http.StatusInternalServerError);
+		http.Error(w, "GetUrlAliasHandler: Unexpected error while processing request.", http.StatusInternalServerError);
 		return
 	}
 
-	if existingShortUrl != nil {
-		http.Redirect(w, r, existingShortUrl.OriginalURL, http.StatusFound)
+	if existingAlias != nil {
+		http.Redirect(w, r, existingAlias.OriginalURL, http.StatusFound)
 		return
 	}
 

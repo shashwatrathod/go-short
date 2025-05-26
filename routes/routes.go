@@ -9,6 +9,6 @@ import (
 func RegisterRoutes(router *mux.Router) {
 	r := router.PathPrefix("/api").Subrouter();
 	r.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
-	r.HandleFunc("/create", middleware.Validate(handlers.CreateShortUrlHandler)).Methods("POST")
-	r.HandleFunc("/{shortUrl}", handlers.GetShortUrlHandler).Methods("GET")
+	r.HandleFunc("/create", middleware.Validate(handlers.CreateUrlAliasHandler)).Methods("POST")
+	r.HandleFunc("/{alias}", handlers.GetUrlAliasHandler).Methods("GET")
 }
