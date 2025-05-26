@@ -1,14 +1,18 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/shashwatrathod/url-shortner/cache"
 	"github.com/shashwatrathod/url-shortner/core"
 	"github.com/shashwatrathod/url-shortner/middleware"
 )
+
+const ALIAS_CACHE_STORE = "aliases"
 
 // CreateUrlAliasRequest defines the request body for creating a URL alias.
 //
@@ -119,6 +123,19 @@ func GetUrlAliasHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	alias := vars["alias"]
 
+	// try to find the value from cache.
+	cachedOriginalUrl, err := appEnv.CacheManager.Get(r.Context(), ALIAS_CACHE_STORE, alias)
+	if err != nil {
+		log.Printf("Error while fetching cached content: %s", err.Error())
+	}
+
+	if cachedOriginalUrl != nil {
+		log.Printf("Cache hit for alias '%s'. Redirecting to: %s", alias, cachedOriginalUrl.(string))
+		http.Redirect(w, r, cachedOriginalUrl.(string), http.StatusFound)
+		return
+	}
+
+	// fetch value from db
 	existingAlias, err := appEnv.UrlAliasDao.FindByAlias(r.Context(), alias)
 
 	if err != nil {
@@ -129,6 +146,18 @@ func GetUrlAliasHandler(w http.ResponseWriter, r *http.Request) {
 
 	if existingAlias != nil {
 		http.Redirect(w, r, existingAlias.OriginalURL, http.StatusFound)
+
+		// asyncrhonously save the fetched value to cache for future use.
+		go func(alias string, originalUrl string, cm cache.CacheManager) {
+			bgCtx := context.Background()
+			err := appEnv.CacheManager.Set(bgCtx, ALIAS_CACHE_STORE, alias, originalUrl)
+			if err != nil {
+				log.Printf("Error setting cache for alias '%s' after DB hit: %s", alias, err.Error())
+			} else {
+				log.Printf("Successfully cached alias '%s' after DB hit.", alias)
+			}
+		}(alias, existingAlias.OriginalURL, appEnv.CacheManager)
+
 		return
 	}
 
