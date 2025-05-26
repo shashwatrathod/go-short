@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/shashwatrathod/url-shortner/core"
 	"github.com/shashwatrathod/url-shortner/db"
 	"github.com/shashwatrathod/url-shortner/db/dao"
 )
@@ -11,12 +12,14 @@ import (
 type AppEnv struct {
 	DBManager *db.ConnectionManager
 	ShortURLDAO dao.ShortURLDao
+	ShorteningStrategy core.ShorteningStrategy
 }
 
 func NewAppEnv(dbManager *db.ConnectionManager) *AppEnv {
 	return &AppEnv{
         DBManager:   dbManager,
         ShortURLDAO: dao.NewShortURLDao(dbManager),
+		ShorteningStrategy: core.NewSimpleShorteningStrategy(),
     } 
 }
 

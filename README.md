@@ -2,6 +2,12 @@
 
 ## Build and Run
 
+### Install dependencies
+
+```bash
+go get
+```
+
 ### Using Go CLI
 
 ```bash
