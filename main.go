@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/shashwatrathod/url-shortner/db"
-	_ "github.com/shashwatrathod/url-shortner/docs"
+	_ "github.com/shashwatrathod/url-shortner/docs/swagger"
 	"github.com/shashwatrathod/url-shortner/handlers"
 	"github.com/shashwatrathod/url-shortner/middleware"
 	"github.com/shashwatrathod/url-shortner/routes"

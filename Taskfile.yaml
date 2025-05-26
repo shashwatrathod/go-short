@@ -10,7 +10,7 @@ tasks:
   docs:
     desc : "Generate Swagger Docs"
     cmds:
-      - swag init
+      - swag init -o ./docs/swagger
     silent: false
 
   default:
