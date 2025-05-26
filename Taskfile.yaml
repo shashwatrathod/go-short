@@ -7,6 +7,12 @@ tasks:
       - go run main.go
     silent: false
 
+  docs:
+    desc : "Generate Swagger Docs"
+    cmds:
+      - swag init
+    silent: false
+
   default:
     cmds:
       - task: start

@@ -9,81 +9,94 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/shashwatrathod/url-shortner/db"
+	_ "github.com/shashwatrathod/url-shortner/docs"
 	"github.com/shashwatrathod/url-shortner/handlers"
 	"github.com/shashwatrathod/url-shortner/middleware"
 	"github.com/shashwatrathod/url-shortner/routes"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// @title URL Shortener API
+// @version 1.0
+// @description API Documentation for the Go-Short URL shortening service.
 
+// @host localhost:8080
+// @BasePath /api
+// @schemes http
 func main() {
 	// Load .env file
-    err := godotenv.Load()
-    if err != nil {
-        log.Println("Warning: Error loading .env file, relying on environment variables.")
-    }
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: Error loading .env file, relying on environment variables.")
+	}
 
 	// Initialize ConnectionManager
 	configs := []db.ConnectionConfig{
 		{
 			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			os.Getenv("DB_USER"),
-			os.Getenv("DB_PASSWORD"),
-			os.Getenv("DB_HOST"),
-			os.Getenv("DB_PORT"),
-			"urls",
-			), 
+				os.Getenv("DB_USER"),
+				os.Getenv("DB_PASSWORD"),
+				os.Getenv("DB_HOST"),
+				os.Getenv("DB_PORT"),
+				"urls",
+			),
 			ShardName: "urls",
 		},
 		{
 			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			os.Getenv("DB_USER"),
-			os.Getenv("DB_PASSWORD"),
-			os.Getenv("DB_HOST"),
-			os.Getenv("DB_PORT"),
-			"urls_2",
-			), 
+				os.Getenv("DB_USER"),
+				os.Getenv("DB_PASSWORD"),
+				os.Getenv("DB_HOST"),
+				os.Getenv("DB_PORT"),
+				"urls_1",
+			),
 			ShardName: "urls_1",
 		},
 		{
 			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			os.Getenv("DB_USER"),
-			os.Getenv("DB_PASSWORD"),
-			os.Getenv("DB_HOST"),
-			os.Getenv("DB_PORT"),
-			"urls_2",
-			), 
+				os.Getenv("DB_USER"),
+				os.Getenv("DB_PASSWORD"),
+				os.Getenv("DB_HOST"),
+				os.Getenv("DB_PORT"),
+				"urls_2",
+			),
 			ShardName: "urls_2",
 		},
 	}
 
 	dbManager, err := db.NewConnectionManager(configs)
 	if err != nil {
-        log.Fatalf("Failed to initialize ConnectionManager: %v", err)
-    }
+		log.Fatalf("Failed to initialize ConnectionManager: %v", err)
+	}
 	defer dbManager.CloseAll()
 
 	// Apply migrations
-    if err := dbManager.ApplyMigrations(); err != nil {
-        log.Fatalf("Failed to apply migrations: %v", err)
-    }
-    log.Println("Database migrations applied successfully.")
+	if err := dbManager.ApplyMigrations(); err != nil {
+		log.Fatalf("Failed to apply migrations: %v", err)
+	}
+	log.Println("Database migrations applied successfully.")
 
 	// Initialize router
-	router := mux.NewRouter();
+	router := mux.NewRouter()
 
-	router.Use(middleware.LoggingMiddleware);
-	router.Use(middleware.ErrorHandlingMiddleware);
+	router.Use(middleware.LoggingMiddleware)
+	router.Use(middleware.ErrorHandlingMiddleware)
 
 	appEnv := middleware.NewAppEnv(dbManager)
 	router.Use(middleware.ContextMiddleware(appEnv))
 
-	// Register routes
-	routes.RegisterRoutes(router);
+	// Register API routes
+	routes.RegisterRoutes(router)
 
-	router.NotFoundHandler = http.HandlerFunc(handlers.NotFoundHandler);
-	router.MethodNotAllowedHandler = http.HandlerFunc(handlers.MethodNotAllowedHandler);
-	
+	// TODO: Make this route conditional - based on deployment env.
+	// Swagger UI route : http://{host}:8080/swagger/index.html
+	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+
+	router.NotFoundHandler = http.HandlerFunc(handlers.NotFoundHandler)
+	router.MethodNotAllowedHandler = http.HandlerFunc(handlers.MethodNotAllowedHandler)
+
 	// Start the server
 	log.Println("Starting server on :8080")
-	http.ListenAndServe(":8080", router);
+	log.Println("Access Swagger at http://localhost:8080/swagger/index.html")
+	http.ListenAndServe(":8080", router)
 }

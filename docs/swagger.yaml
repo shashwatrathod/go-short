@@ -1,0 +1,155 @@
+basePath: /api
+definitions:
+  handlers.CreateUrlAliasRequest:
+    description: Request body for creating a URL alias.
+    properties:
+      originalUrl:
+        example: https://example.com/very/long/url/to/shorten
+        type: string
+    required:
+    - originalUrl
+    type: object
+  handlers.CreateUrlAliasResponse:
+    description: Response body for a created URL alias.
+    properties:
+      urlAlias:
+        example: aBcDeFg1
+        type: string
+    type: object
+  handlers.ErrorResponse:
+    description: Generic error response structure used for 4xx and 5xx errors.
+    properties:
+      error:
+        description: Type of the error (e.g., "Not Found", "Internal Server Error")
+        example: Error Type
+        type: string
+      message:
+        description: Detailed error message
+        example: A descriptive error message.
+        type: string
+    type: object
+  handlers.HealthResponse:
+    description: Response for the health check endpoint.
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  middleware.ValidationError:
+    description: Validation error response structure.
+    properties:
+      error:
+        description: Error type, typically "ValidationError"
+        example: ValidationError
+        type: string
+      messages:
+        description: List of validation error messages
+        items:
+          type: string
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API Documentation for the Go-Short URL shortening service.
+  title: URL Shortener API
+  version: "1.0"
+paths:
+  /{alias}:
+    get:
+      description: Retrieves the original URL for a given alias and redirects to it.
+      parameters:
+      - description: URL Alias
+        in: path
+        name: alias
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "302":
+          description: Redirects to the original URL (Location header will be set)
+        "404":
+          description: Alias not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Redirect to original URL
+      tags:
+      - urls
+  /anyNonExistentRoute:
+    get:
+      description: Handles requests for routes that are not found.
+      produces:
+      - application/json
+      responses:
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Not Found
+      tags:
+      - errors
+  /anyRouteWithWrongMethod:
+    put:
+      description: Handles requests where the HTTP method is not allowed for the route.
+      produces:
+      - application/json
+      responses:
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Method Not Allowed
+      tags:
+      - errors
+  /create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new URL alias for a given original URL or returns an
+        existing one.
+      parameters:
+      - description: Request body to create a URL alias
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUrlAliasRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully created or retrieved alias
+          schema:
+            $ref: '#/definitions/handlers.CreateUrlAliasResponse'
+        "400":
+          description: Invalid request payload (validation error)
+          schema:
+            $ref: '#/definitions/middleware.ValidationError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Create or get a URL alias
+      tags:
+      - urls
+  /health:
+    get:
+      description: Returns the health status of the application.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application is healthy
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+      summary: Application health check
+      tags:
+      - health
+schemes:
+- http
+swagger: "2.0"

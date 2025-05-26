@@ -1,0 +1,229 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API Documentation for the Go-Short URL shortening service.",
+        "title": "URL Shortener API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/anyNonExistentRoute": {
+            "get": {
+                "description": "Handles requests for routes that are not found.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "errors"
+                ],
+                "summary": "Not Found",
+                "responses": {
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/anyRouteWithWrongMethod": {
+            "put": {
+                "description": "Handles requests where the HTTP method is not allowed for the route.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "errors"
+                ],
+                "summary": "Method Not Allowed",
+                "responses": {
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/create": {
+            "post": {
+                "description": "Creates a new URL alias for a given original URL or returns an existing one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "urls"
+                ],
+                "summary": "Create or get a URL alias",
+                "parameters": [
+                    {
+                        "description": "Request body to create a URL alias",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateUrlAliasRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully created or retrieved alias",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateUrlAliasResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request payload (validation error)",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ValidationError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Returns the health status of the application.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Application health check",
+                "responses": {
+                    "200": {
+                        "description": "Application is healthy",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/{alias}": {
+            "get": {
+                "description": "Retrieves the original URL for a given alias and redirects to it.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "urls"
+                ],
+                "summary": "Redirect to original URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "URL Alias",
+                        "name": "alias",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to the original URL (Location header will be set)"
+                    },
+                    "404": {
+                        "description": "Alias not found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.CreateUrlAliasRequest": {
+            "description": "Request body for creating a URL alias.",
+            "type": "object",
+            "required": [
+                "originalUrl"
+            ],
+            "properties": {
+                "originalUrl": {
+                    "type": "string",
+                    "example": "https://example.com/very/long/url/to/shorten"
+                }
+            }
+        },
+        "handlers.CreateUrlAliasResponse": {
+            "description": "Response body for a created URL alias.",
+            "type": "object",
+            "properties": {
+                "urlAlias": {
+                    "type": "string",
+                    "example": "aBcDeFg1"
+                }
+            }
+        },
+        "handlers.ErrorResponse": {
+            "description": "Generic error response structure used for 4xx and 5xx errors.",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Type of the error (e.g., \"Not Found\", \"Internal Server Error\")",
+                    "type": "string",
+                    "example": "Error Type"
+                },
+                "message": {
+                    "description": "Detailed error message",
+                    "type": "string",
+                    "example": "A descriptive error message."
+                }
+            }
+        },
+        "handlers.HealthResponse": {
+            "description": "Response for the health check endpoint.",
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "middleware.ValidationError": {
+            "description": "Validation error response structure.",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error type, typically \"ValidationError\"",
+                    "type": "string",
+                    "example": "ValidationError"
+                },
+                "messages": {
+                    "description": "List of validation error messages",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}
