@@ -20,13 +20,13 @@ type ShortURL struct {
 // defines the interface for short URL data access operations.
 type ShortURLDao interface {
 	// creates a new short URL entry in the database.
-	CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (ShortURL, error)
+	CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (*ShortURL, error)
 	
 	// retrieves a short URL entry from the database by its short URL.
-	FindByShortUrl(ctx context.Context, shortUrl string) (ShortURL, error)
+	FindByShortUrl(ctx context.Context, shortUrl string) (*ShortURL, error)
 
 	// retries a short URL entry from the DB by its original URL.
-	FindByOriginalUrl(ctx context.Context, originalUrl string) (ShortURL, error)
+	FindByOriginalUrl(ctx context.Context, originalUrl string) (*ShortURL, error)
 }
 
 // shortURLDaoImpl is the concrete implementation of ShortURLDao.
@@ -42,13 +42,13 @@ func NewShortURLDao(cm *db.ConnectionManager) ShortURLDao {
 }
 
 // creates a new short_url row with provided .
-func (d *shortURLDaoImpl) CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (ShortURL, error) {
+func (d *shortURLDaoImpl) CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (*ShortURL, error) {
 	if d.connManager == nil {
-		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
+		return nil, fmt.Errorf("ConnectionManager is not initialized in DAO")
 	}
 	shardDB, err := d.connManager.GetShardByShardKey(shortUrl) // Use shortUrl as sharding key
 	if err != nil {
-		return ShortURL{}, fmt.Errorf("failed to get shard for key %s: %w", shortUrl, err)
+		return nil, fmt.Errorf("failed to get shard for key %s: %w", shortUrl, err)
 	}
 
 	query := `INSERT INTO short_urls (short_url, original_url) VALUES ($1, $2)
@@ -62,19 +62,19 @@ func (d *shortURLDaoImpl) CreateShortURL(ctx context.Context, shortUrl string, o
 		&createdURL.UpdatedAt,
 	)
 	if err != nil {
-		return ShortURL{}, fmt.Errorf("failed to create short URL: %w", err)
+		return nil, fmt.Errorf("failed to create short URL: %w", err)
 	}
-	return createdURL, nil
+	return &createdURL, nil
 }
 
 // retrieves a short URL entry from the database by its short URL
-func (d *shortURLDaoImpl) FindByShortUrl(ctx context.Context, shortUrl string) (ShortURL, error) {
+func (d *shortURLDaoImpl) FindByShortUrl(ctx context.Context, shortUrl string) (*ShortURL, error) {
 	if d.connManager == nil {
-		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
+		return nil, fmt.Errorf("ConnectionManager is not initialized in DAO")
 	}
 	shardDB, err := d.connManager.GetShardByShardKey(shortUrl) // Use shortUrl as sharding key
 	if err != nil {
-		return ShortURL{}, fmt.Errorf("failed to get shard for key %s: %w", shortUrl, err)
+		return nil, fmt.Errorf("failed to get shard for key %s: %w", shortUrl, err)
 	}
 
 	query := `SELECT short_url, original_url, created_at, updated_at FROM short_urls WHERE short_url = $1`
@@ -88,19 +88,19 @@ func (d *shortURLDaoImpl) FindByShortUrl(ctx context.Context, shortUrl string) (
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return ShortURL{}, fmt.Errorf("short URL not found: %s", shortUrl) // Consider a custom error type
+			return nil, fmt.Errorf("short URL not found: %s", shortUrl) // Consider a custom error type
 		}
-		return ShortURL{}, fmt.Errorf("failed to get short URL: %w", err)
+		return nil, fmt.Errorf("failed to get short URL: %w", err)
 	}
-	return fetchedURL, nil
+	return &fetchedURL, nil
 }
 
 // retrieves a short URL entry from the DB by its original URL.
-// returns the ShortUrl erntry if found, nil otherwise. 
+// returns the ShortUrl entry if found, nil otherwise. 
 // returns an error if there was an unexpected error in executing the query.
-func (d *shortURLDaoImpl) FindByOriginalUrl(ctx context.Context, originalUrl string) (ShortURL, error) {
+func (d *shortURLDaoImpl) FindByOriginalUrl(ctx context.Context, originalUrl string) (*ShortURL, error) {
 	if d.connManager == nil {
-		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
+		return nil, fmt.Errorf("ConnectionManager is not initialized in DAO")
 	}
 
 	// Search across all shards for the original URL
@@ -126,12 +126,13 @@ func (d *shortURLDaoImpl) FindByOriginalUrl(ctx context.Context, originalUrl str
     })
 
 	if err != nil {
-        return ShortURL{}, fmt.Errorf("failed to search for original URL: %w", err)
+        return nil, fmt.Errorf("failed to search for original URL: %w", err)
     }
     
-    if result == nil {
-        return ShortURL{}, nil
-    }
-    
-    return result.(ShortURL), nil
+	if result == nil {
+		return nil, nil
+	}
+	
+	shortURL := result.(ShortURL)
+	return &shortURL, nil
 }
