@@ -57,6 +57,21 @@ func (cm *ConnectionManager) GetShardByShardKey(key string) (*sql.DB, error) {
 	return cm.shards[shardIdx], nil
 }
 
+// iterates over all database connections and executes the provided function
+// Returns the first non-nil result, or nil if no results found
+func (cm *ConnectionManager) ForEachWithResult(fn func(db *sql.DB) (interface{}, error)) (interface{}, error) {
+    for _, db := range cm.shards {
+        result, err := fn(db)
+        if err != nil {
+            return nil, err
+        }
+        if result != nil {
+            return result, nil
+        }
+    }
+    return nil, nil
+}
+
 // applies db migrations from the DB_MIGRATION_DIR to all the db shards
 // using goose.
 // returns error if any of the migrations couldn't be applied.

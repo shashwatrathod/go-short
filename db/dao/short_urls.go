@@ -21,8 +21,12 @@ type ShortURL struct {
 type ShortURLDao interface {
 	// creates a new short URL entry in the database.
 	CreateShortURL(ctx context.Context, shortUrl string, originalUrl string) (ShortURL, error)
+	
 	// retrieves a short URL entry from the database by its short URL.
-	GetShortURL(ctx context.Context, shortUrl string) (ShortURL, error)
+	FindByShortUrl(ctx context.Context, shortUrl string) (ShortURL, error)
+
+	// retries a short URL entry from the DB by its original URL.
+	FindByOriginalUrl(ctx context.Context, originalUrl string) (ShortURL, error)
 }
 
 // shortURLDaoImpl is the concrete implementation of ShortURLDao.
@@ -63,8 +67,8 @@ func (d *shortURLDaoImpl) CreateShortURL(ctx context.Context, shortUrl string, o
 	return createdURL, nil
 }
 
-// GetShortURL implements the ShortURLDao interface.
-func (d *shortURLDaoImpl) GetShortURL(ctx context.Context, shortUrl string) (ShortURL, error) {
+// retrieves a short URL entry from the database by its short URL
+func (d *shortURLDaoImpl) FindByShortUrl(ctx context.Context, shortUrl string) (ShortURL, error) {
 	if d.connManager == nil {
 		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
 	}
@@ -89,4 +93,45 @@ func (d *shortURLDaoImpl) GetShortURL(ctx context.Context, shortUrl string) (Sho
 		return ShortURL{}, fmt.Errorf("failed to get short URL: %w", err)
 	}
 	return fetchedURL, nil
+}
+
+// retrieves a short URL entry from the DB by its original URL.
+// returns the ShortUrl erntry if found, nil otherwise. 
+// returns an error if there was an unexpected error in executing the query.
+func (d *shortURLDaoImpl) FindByOriginalUrl(ctx context.Context, originalUrl string) (ShortURL, error) {
+	if d.connManager == nil {
+		return ShortURL{}, fmt.Errorf("ConnectionManager is not initialized in DAO")
+	}
+
+	// Search across all shards for the original URL
+    result, err := d.connManager.ForEachWithResult(func(db *sql.DB) (interface{}, error) {
+        query := `SELECT short_url, original_url, created_at, updated_at FROM short_urls WHERE original_url = $1`
+        
+        var fetchedURL ShortURL
+        err := db.QueryRowContext(ctx, query, originalUrl).Scan(
+            &fetchedURL.ShortURL,
+            &fetchedURL.OriginalURL,
+            &fetchedURL.CreatedAt,
+            &fetchedURL.UpdatedAt,
+        )
+        
+        if err != nil {
+            if err == sql.ErrNoRows {
+                return nil, nil // Not found in this shard, continue searching
+            }
+            return nil, fmt.Errorf("failed to query shard: %w", err)
+        }
+        
+        return fetchedURL, nil
+    })
+
+	if err != nil {
+        return ShortURL{}, fmt.Errorf("failed to search for original URL: %w", err)
+    }
+    
+    if result == nil {
+        return ShortURL{}, nil
+    }
+    
+    return result.(ShortURL), nil
 }
