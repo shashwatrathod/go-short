@@ -11,7 +11,7 @@ import (
 
 // defines the structure for a UrlAlias record.
 type UrlAlias struct {
-	Alias    string    `json:"short_url"`
+	Alias       string    `json:"short_url"`
 	OriginalURL string    `json:"original_url"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -21,7 +21,7 @@ type UrlAlias struct {
 type UrlAliasDao interface {
 	// creates a new UrlAlias entry in the database.
 	CreateUrlAlias(ctx context.Context, alias string, originalUrl string) (*UrlAlias, error)
-	
+
 	// retrieves a short URL entry from the database by its alias.
 	FindByAlias(ctx context.Context, alias string) (*UrlAlias, error)
 
@@ -88,7 +88,7 @@ func (d *urlAliasDaoImpl) FindByAlias(ctx context.Context, shortUrl string) (*Ur
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("alias not found: %s", shortUrl) // Consider a custom error type
+			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get Alias: %w", err)
 	}
@@ -96,7 +96,7 @@ func (d *urlAliasDaoImpl) FindByAlias(ctx context.Context, shortUrl string) (*Ur
 }
 
 // retrieves an Alias entry from the DB by its original URL.
-// returns the UrlAlias entry if found, nil otherwise. 
+// returns the UrlAlias entry if found, nil otherwise.
 // returns an error if there was an unexpected error in executing the query.
 func (d *urlAliasDaoImpl) FindByOriginalUrl(ctx context.Context, originalUrl string) (*UrlAlias, error) {
 	if d.connManager == nil {
@@ -104,35 +104,35 @@ func (d *urlAliasDaoImpl) FindByOriginalUrl(ctx context.Context, originalUrl str
 	}
 
 	// Search across all shards for the original URL
-    result, err := d.connManager.ForEachWithResult(func(db *sql.DB) (interface{}, error) {
-        query := `SELECT alias, original_url, created_at, updated_at FROM url_aliases WHERE original_url = $1`
-        
-        var fetchedAlias UrlAlias
-        err := db.QueryRowContext(ctx, query, originalUrl).Scan(
-            &fetchedAlias.Alias,
-            &fetchedAlias.OriginalURL,
-            &fetchedAlias.CreatedAt,
-            &fetchedAlias.UpdatedAt,
-        )
-        
-        if err != nil {
-            if err == sql.ErrNoRows {
-                return nil, nil // Not found in this shard, continue searching
-            }
-            return nil, fmt.Errorf("failed to query shard: %w", err)
-        }
-        
-        return fetchedAlias, nil
-    })
+	result, err := d.connManager.ForEachWithResult(func(db *sql.DB) (interface{}, error) {
+		query := `SELECT alias, original_url, created_at, updated_at FROM url_aliases WHERE original_url = $1`
+
+		var fetchedAlias UrlAlias
+		err := db.QueryRowContext(ctx, query, originalUrl).Scan(
+			&fetchedAlias.Alias,
+			&fetchedAlias.OriginalURL,
+			&fetchedAlias.CreatedAt,
+			&fetchedAlias.UpdatedAt,
+		)
+
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil // Not found in this shard, continue searching
+			}
+			return nil, fmt.Errorf("failed to query shard: %w", err)
+		}
+
+		return fetchedAlias, nil
+	})
 
 	if err != nil {
-        return nil, fmt.Errorf("failed to search for original URL: %w", err)
-    }
-    
+		return nil, fmt.Errorf("failed to search for original URL: %w", err)
+	}
+
 	if result == nil {
 		return nil, nil
 	}
-	
+
 	alias := result.(UrlAlias)
 	return &alias, nil
 }

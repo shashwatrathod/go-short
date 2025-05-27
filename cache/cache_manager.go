@@ -10,7 +10,7 @@ import (
 )
 
 // default expiry - 20 minutes.
-const DEFAULT_EXPIRY_SECONDS time.Duration = time.Duration(20) * time.Second
+const DEFAULT_EXPIRY_SECONDS time.Duration = time.Duration(20) * time.Minute
 
 type CacheManager interface {
 	// Sets the key with the given value with DEFAULT_EXPIRY_SECONDS.
