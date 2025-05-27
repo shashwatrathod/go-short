@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+	"github.com/shashwatrathod/url-shortner/cache"
 	"github.com/shashwatrathod/url-shortner/db"
 	_ "github.com/shashwatrathod/url-shortner/docs/swagger"
 	"github.com/shashwatrathod/url-shortner/handlers"
@@ -16,21 +19,8 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// @title URL Shortener API
-// @version 1.0
-// @description API Documentation for the Go-Short URL shortening service.
-
-// @host localhost:8080
-// @BasePath /api
-// @schemes http
-func main() {
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Warning: Error loading .env file, relying on environment variables.")
-	}
-
-	// Initialize ConnectionManager
+// initializes and returns the db connection manager.
+func initDb() (*db.ConnectionManager, error) {
 	configs := []db.ConnectionConfig{
 		{
 			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -66,15 +56,74 @@ func main() {
 
 	dbManager, err := db.NewConnectionManager(configs)
 	if err != nil {
-		log.Fatalf("Failed to initialize ConnectionManager: %v", err)
+		return nil, fmt.Errorf("Failed to initialize ConnectionManager: %v", err)
 	}
-	defer dbManager.CloseAll()
 
 	// Apply migrations
 	if err := dbManager.ApplyMigrations(); err != nil {
-		log.Fatalf("Failed to apply migrations: %v", err)
+		return nil, fmt.Errorf("Failed to apply migrations: %v", err)
 	}
-	log.Println("Database migrations applied successfully.")
+
+	return dbManager, nil
+}
+
+// initializes and returns the redis cache manager
+func initRedisCacheManager(ctx context.Context) (cache.CacheManager, error) {
+	host := os.Getenv("REDIS_HOST")
+	port := os.Getenv("REDIS_PORT")
+	password := os.Getenv("REDIS_PASSWORD")
+
+	if host == "" {
+		host = "localhost"
+	}
+	if port == "" {
+		port = "6379"
+	}
+
+	client := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", host, port),
+		Password: password,
+		DB:       0,
+	})
+
+	return cache.NewRedisCacheManager(ctx, client)
+}
+
+// @title URL Shortener API
+// @version 1.0
+// @description API Documentation for the Go-Short URL shortening service.
+
+// @host localhost:8080
+// @BasePath /api
+// @schemes http
+func main() {
+	// Load .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: Error loading .env file, relying on environment variables.")
+	}
+
+	ctx := context.Background()
+
+	// Initialize the DB Connection Manager.
+	dbManager, err := initDb()
+
+	if err != nil {
+		log.Fatalf("Initializing DBManager : %s", err)
+	}
+
+	log.Printf("Initializing DBManager : Success")
+
+	// Initialize Redis Cache Manager
+	cacheManager, err := initRedisCacheManager(ctx)
+	if err != nil {
+		log.Fatalf("Initializing CacheManager : %s", err)
+	}
+
+	log.Printf("Initializing CacheManager : Success")
+
+	// Initialize AppEnv
+	appEnv := middleware.NewAppEnv(dbManager, cacheManager)
 
 	// Initialize router
 	router := mux.NewRouter()
@@ -82,7 +131,6 @@ func main() {
 	router.Use(middleware.LoggingMiddleware)
 	router.Use(middleware.ErrorHandlingMiddleware)
 
-	appEnv := middleware.NewAppEnv(dbManager)
 	router.Use(middleware.ContextMiddleware(appEnv))
 
 	// Register API routes
