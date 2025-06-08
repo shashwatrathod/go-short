@@ -37,7 +37,7 @@ func Load() *Config {
 	portStrings := strings.Split(envPorts, ",")
 	ports := make([]int, len(portStrings))
 	for i, port := range portStrings {
-		portInt, err := strconv.Atoi(port)
+		portInt, err := strconv.Atoi(strings.TrimSpace(port))
 		if err != nil {
 			panic("Invalid port number in DB_PORT_LIST: " + port)
 		}
@@ -55,11 +55,11 @@ func Load() *Config {
 	dbConfigs := make([]DBConfig, len(hosts))
 	for i := range hosts {
 		dbConfigs[i] = DBConfig{
-			Host:     hosts[i],
+			Host:     strings.TrimSpace(hosts[i]),
 			Port:     ports[i],
-			DBName:   names[i],
-			DBUser:   users[i],
-			Password: passwords[i],
+			DBName:   strings.TrimSpace(names[i]),
+			DBUser:   strings.TrimSpace(users[i]),
+			Password: strings.TrimSpace(passwords[i]),
 		}
 	}
 
