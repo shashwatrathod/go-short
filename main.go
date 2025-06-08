@@ -13,6 +13,7 @@ import (
 
 	_ "github.com/shashwatrathod/url-shortner/docs/swagger"
 	"github.com/shashwatrathod/url-shortner/internal/cache"
+	"github.com/shashwatrathod/url-shortner/internal/config"
 	"github.com/shashwatrathod/url-shortner/internal/db"
 	"github.com/shashwatrathod/url-shortner/internal/handlers"
 	"github.com/shashwatrathod/url-shortner/internal/middleware"
@@ -22,41 +23,23 @@ import (
 )
 
 // initializes and returns the db connection manager.
-func initDb() (*db.ConnectionManager, error) {
-	configs := []db.ConnectionConfig{
-		{
-			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-				os.Getenv("DB_USER"),
-				os.Getenv("DB_PASSWORD"),
-				os.Getenv("DB_HOST"),
-				os.Getenv("DB_PORT"),
-				"urls",
+func initDb(conf *config.Config) (*db.ConnectionManager, error) {
+	var connConfigs = make([]db.ConnectionConfig, len(conf.DBConfigs))
+
+	for i, dbConfig := range conf.DBConfigs {
+		connConfigs[i] = db.ConnectionConfig{
+			DSN: fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+				dbConfig.DBUser,
+				dbConfig.Password,
+				dbConfig.Host,
+				dbConfig.Port,
+				dbConfig.DBName,
 			),
-			ShardName: "urls",
-		},
-		{
-			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-				os.Getenv("DB_USER"),
-				os.Getenv("DB_PASSWORD"),
-				os.Getenv("DB_HOST"),
-				os.Getenv("DB_PORT"),
-				"urls_1",
-			),
-			ShardName: "urls_1",
-		},
-		{
-			DSN: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-				os.Getenv("DB_USER"),
-				os.Getenv("DB_PASSWORD"),
-				os.Getenv("DB_HOST"),
-				os.Getenv("DB_PORT"),
-				"urls_2",
-			),
-			ShardName: "urls_2",
-		},
+			ShardName: dbConfig.DBName,
+		}
 	}
 
-	dbManager, err := db.NewConnectionManager(configs)
+	dbManager, err := db.NewConnectionManager(connConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize ConnectionManager: %v", err)
 	}
@@ -105,10 +88,12 @@ func main() {
 		log.Println("Warning: Error loading .env file, relying on environment variables.")
 	}
 
+	conf := config.Load()
+
 	ctx := context.Background()
 
 	// Initialize the DB Connection Manager.
-	dbManager, err := initDb()
+	dbManager, err := initDb(conf)
 
 	if err != nil {
 		log.Fatalf("Initializing DBManager : %s", err)
