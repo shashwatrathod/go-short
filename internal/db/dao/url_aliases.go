@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shashwatrathod/url-shortner/db"
+	"github.com/shashwatrathod/url-shortner/internal/db"
 )
 
 // defines the structure for a UrlAlias record.

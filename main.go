@@ -10,12 +10,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
-	"github.com/shashwatrathod/url-shortner/cache"
-	"github.com/shashwatrathod/url-shortner/db"
+
 	_ "github.com/shashwatrathod/url-shortner/docs/swagger"
-	"github.com/shashwatrathod/url-shortner/handlers"
-	"github.com/shashwatrathod/url-shortner/middleware"
-	"github.com/shashwatrathod/url-shortner/routes"
+	"github.com/shashwatrathod/url-shortner/internal/cache"
+	"github.com/shashwatrathod/url-shortner/internal/db"
+	"github.com/shashwatrathod/url-shortner/internal/handlers"
+	"github.com/shashwatrathod/url-shortner/internal/middleware"
+	"github.com/shashwatrathod/url-shortner/internal/routes"
+
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 

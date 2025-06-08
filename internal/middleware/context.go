@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/shashwatrathod/url-shortner/cache"
-	"github.com/shashwatrathod/url-shortner/core"
-	"github.com/shashwatrathod/url-shortner/db"
-	"github.com/shashwatrathod/url-shortner/db/dao"
+	"github.com/shashwatrathod/url-shortner/internal/cache"
+	"github.com/shashwatrathod/url-shortner/internal/core"
+	"github.com/shashwatrathod/url-shortner/internal/db"
+	"github.com/shashwatrathod/url-shortner/internal/db/dao"
 )
 
 type AppEnv struct {

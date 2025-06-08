@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/shashwatrathod/url-shortner/cache"
-	"github.com/shashwatrathod/url-shortner/core"
-	"github.com/shashwatrathod/url-shortner/middleware"
+	"github.com/shashwatrathod/url-shortner/internal/cache"
+	"github.com/shashwatrathod/url-shortner/internal/core"
+	"github.com/shashwatrathod/url-shortner/internal/middleware"
 )
 
 const ALIAS_CACHE_STORE = "aliases"
