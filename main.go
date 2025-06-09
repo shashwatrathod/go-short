@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -41,33 +40,22 @@ func initDb(conf *config.Config) (*db.ConnectionManager, error) {
 
 	dbManager, err := db.NewConnectionManager(connConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize ConnectionManager: %v", err)
+		return nil, fmt.Errorf("failed to initialize ConnectionManager: %v", err)
 	}
 
 	// Apply migrations
 	if err := dbManager.ApplyMigrations(); err != nil {
-		return nil, fmt.Errorf("Failed to apply migrations: %v", err)
+		return nil, fmt.Errorf("failed to apply migrations: %v", err)
 	}
 
 	return dbManager, nil
 }
 
 // initializes and returns the redis cache manager
-func initRedisCacheManager(ctx context.Context) (cache.CacheManager, error) {
-	host := os.Getenv("REDIS_HOST")
-	port := os.Getenv("REDIS_PORT")
-	password := os.Getenv("REDIS_PASSWORD")
-
-	if host == "" {
-		host = "localhost"
-	}
-	if port == "" {
-		port = "6379"
-	}
-
+func initRedisCacheManager(ctx context.Context, conf *config.Config) (cache.CacheManager, error) {
 	client := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", host, port),
-		Password: password,
+		Addr:     fmt.Sprintf("%s:%d", conf.RedisConfig.Host, conf.RedisConfig.Port),
+		Password: conf.RedisConfig.Password,
 		DB:       0,
 	})
 
@@ -88,7 +76,10 @@ func main() {
 		log.Println("Warning: Error loading .env file, relying on environment variables.")
 	}
 
-	conf := config.Load()
+	conf, err := config.Load()
+	if err != nil {
+		log.Panicf("error loading config: %s", err)
+	}
 
 	ctx := context.Background()
 
@@ -102,7 +93,7 @@ func main() {
 	log.Printf("Initializing DBManager : Success")
 
 	// Initialize Redis Cache Manager
-	cacheManager, err := initRedisCacheManager(ctx)
+	cacheManager, err := initRedisCacheManager(ctx, conf)
 	if err != nil {
 		log.Fatalf("Initializing CacheManager : %s", err)
 	}
